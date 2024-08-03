@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
@@ -17,6 +18,9 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from webdriver_manager.chrome import ChromeDriverManager
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def get_random_user_agent():
     user_agents = [
@@ -54,11 +58,15 @@ class Subscription(db.Model):
     date_range = db.Column(db.String(100))
     status = db.Column(db.String(20), default='active')
     created_at = db.Column(db.DateTime, default=datetime.now())
+    last_checked = db.Column(db.DateTime)  # 新增字段
 
 @app.route('/')
 def index():
     subscriptions = Subscription.query.all()
-    return render_template('index.html', subscriptions=subscriptions)
+    config = configparser.ConfigParser()
+    config.read('config.ini')
+    check_configs = {section: config[section] for section in config.sections() if section.startswith('check-')}
+    return render_template('index.html', subscriptions=subscriptions, check_configs=check_configs)
 
 @app.route('/add_subscription', methods=['POST'])
 def add_subscription():
@@ -99,6 +107,15 @@ def add_subscription():
     )
     db.session.add(subscription)
     db.session.commit()
+    
+    flash('订阅已添加。', 'success')
+    
+    def delayed_check():
+        with app.app_context():
+            check_subscriptions()
+
+    # 等待 5 秒后触发一次查询
+    threading.Timer(5, lambda: delayed_check()).start()
 
     return redirect(url_for('index'))
 
@@ -142,6 +159,8 @@ def send_notification(subscription, test=False):
     msg['Subject'] = subject
     msg['From'] = config['SMTP']['email']
     msg['To'] = subscription.email
+    
+    logger.info(f"Notification sent for subscription: {subscription.title}")
 
     with smtplib.SMTP(smtp_server, smtp_port) as server:
         server.starttls()
@@ -153,19 +172,54 @@ def send_notification(subscription, test=False):
 
 def check_subscriptions():
     subscriptions = Subscription.query.filter_by(status='active').all()
-    for subscription in subscriptions:
-        response = requests.get(subscription.url)
-        tree = html.fromstring(response.content)
+    for i, subscription in enumerate(subscriptions):
+        time.sleep(5)
+        logger.info(f"============== check_subscriptions ({i + 1}/{len(subscriptions)}) ==============")
+        try:
+            service = Service(ChromeDriverManager().install())
+            driver = webdriver.Chrome(service=service, options=chrome_options)
+            driver.get(subscription.url)
+            driver.implicitly_wait(10)
+            page_source = driver.page_source
+            driver.quit()
+        except Exception as e:
+            print(f"Error fetching page: {e}")
+            continue
+
+        tree = html.fromstring(page_source)
         
-        alert_configs = subscription.alert_config.split(',')
-        for config in alert_configs:
-            xpath, text = config.split(':', 1)
+        # 从配置文件读取检查配置
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        
+        # 记录日志
+        logger.info(f"Checked subscription: {subscription.title}")
+
+        for section in config.sections():
+            if not section.startswith('check-'):
+                continue
+            
+            xpath = config[section]['xpath']
+            keywords = config[section]['keywords']
+            reverse = config[section].getboolean('reverse')
             elements = tree.xpath(xpath)
-            if elements and text in elements[0].text_content():
+            # !reverse && elements && keywords in text => send notification
+            # reverse && !elements => send notification
+            # reverse && elements && keywords not in text => send notification
+            # else not send notification
+            send_flag = False
+            if elements:
+                text_content = elements[0].text_content()
+                if (reverse and keywords not in text_content) or (not reverse and keywords in text_content):
+                    send_flag = True
+            if send_flag or (not elements and reverse):
                 send_notification(subscription)
                 subscription.status = 'notified'
-                db.session.commit()
+                logger.info(f"Notification sent for subscription: {subscription.title}")
                 break
+        
+        subscription.last_checked = datetime.now()
+        db.session.commit()
 
 def run_schedule():
     while True:

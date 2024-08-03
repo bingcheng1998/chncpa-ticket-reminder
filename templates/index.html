@@ -67,6 +67,7 @@
                                 <p class="card-text">{{ subscription.venue }}</p>
                                 <p class="card-text">{{ subscription.price_range }}</p>
                                 <p class="card-text">{{ subscription.date_range }}</p>
+                                <p class="card-text">上次查询时间: {{ subscription.last_checked }}</p>
                                 <a href="{{ subscription.url }}" class="btn btn-primary" target="_blank">查看详情</a>
                                 <button class="btn btn-danger float-end" onclick="deleteSubscription({{ subscription.id }})">
                                     <i class="fas fa-times"></i>
@@ -92,12 +93,14 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">告警配置</label>
+                        {% for section, config in check_configs.items() %}
                         <div class="form-check">
-                            <input class="form-check-input" type="checkbox" value='//*[@id="comingSubmit"]:即将开票' id="defaultCheck1" name="alert_config" checked>
-                            <label class="form-check-label" for="defaultCheck1">
-                                当即将开票按钮消失后通知
+                            <input class="form-check-input" type="checkbox" value="{{ config['xpath'] }}:{{ config['keywords'] }}" id="check{{ loop.index }}" name="alert_config" {% if config.getboolean('check') %}checked{% endif %}>
+                            <label class="form-check-label" for="check{{ loop.index }}">
+                                {{ config['keywords'] }} ({{ '不包含' if config.getboolean('reverse') else '包含' }})
                             </label>
                         </div>
+                        {% endfor %}
                     </div>
                     <div class="mb-3">
                         <label for="email" class="form-label">通知邮箱</label>
