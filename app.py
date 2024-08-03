@@ -10,6 +10,7 @@ import time
 import threading
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 import subprocess
 import random
 import configparser
@@ -66,7 +67,8 @@ def index():
     config = configparser.ConfigParser()
     config.read('config.ini')
     check_configs = {section: config[section] for section in config.sections() if section.startswith('check-')}
-    return render_template('index.html', subscriptions=subscriptions, check_configs=check_configs)
+    callback_code = config['callback']['code']
+    return render_template('index.html', subscriptions=subscriptions, check_configs=check_configs, callback_code=callback_code)
 
 @app.route('/add_subscription', methods=['POST'])
 def add_subscription():
@@ -145,14 +147,21 @@ def test_notification(id):
 def send_notification(subscription, test=False):
     subject = f"{'[测试] ' if test else ''}开票提醒：{subscription.title}"
     body = f"""
-    {'这是一条测试通知。' if test else '您订阅的演出即将开票！'}
-    
-    演出信息：
-    标题：{subscription.title}
-    地点：{subscription.venue}
-    价格：{subscription.price_range}
-    日期：{subscription.date_range}
-    链接：{subscription.url}
+    <html>
+        <body>
+            <p>{'这是一条测试通知。' if test else '您订阅的演出已经开票！'}</p>
+            <p>演出信息：</p>
+            <ul>
+                <li>标题：{subscription.title}</li>
+                <li>地点：{subscription.venue}</li>
+                <li>价格：{subscription.price_range}</li>
+                <li>日期：{subscription.date_range}</li>
+            </ul>
+            <a href="{subscription.url}" style="display:inline-block; padding:10px 20px; font-size:16px; color:white; background-color:blue; text-align:center; text-decoration:none; border-radius:5px;">立即购票</a>
+            <p>
+            <img src="{subscription.image}" alt="演出图片" style="width:300px; height:auto;">
+        </body>
+    </html>
     """
 
     # 读取配置文件
@@ -165,10 +174,12 @@ def send_notification(subscription, test=False):
     smtp_username = config['SMTP']['username']
     smtp_password = config['SMTP']['password']
 
-    msg = MIMEText(body)
+    msg = MIMEMultipart('alternative')
     msg['Subject'] = subject
     msg['From'] = config['SMTP']['email']
     msg['To'] = subscription.email
+    
+    msg.attach(MIMEText(body, 'html'))
     
     logger.info(f"Notification sent for subscription: {subscription.title}")
 
@@ -178,7 +189,17 @@ def send_notification(subscription, test=False):
         server.send_message(msg)
 
     if subscription.callback and not test:
-        subprocess.run(subscription.callback, shell=True)
+        callback_code = subscription.callback \
+            .replace('{{title}}', subscription.title) \
+            .replace('{{venue}}', subscription.venue) \
+            .replace('{{price_range}}', subscription.price_range) \
+            .replace('{{date_range}}', subscription.date_range) \
+            .replace('{{image}}', subscription.image) \
+            .replace('{{url}}', subscription.url)
+        try:
+            subprocess.run(callback_code, shell=True)
+        except:
+            logger.error(f"运行自定义脚本失败：{callback_code}")
 
 def check_subscriptions():
     subscriptions = Subscription.query.filter_by(status='active').all()

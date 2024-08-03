@@ -111,9 +111,9 @@
                     </div>
                     <div class="mb-3">
                         <label for="callback" class="form-label">回调命令（可选）</label>
-                        <textarea class="form-control" id="callback" name="callback" rows="3"></textarea>
+                        <textarea class="form-control" id="callback" name="callback" rows="3">{{callback_code}}</textarea>
                     </div>
-                    <button type="submit" class="btn btn-primary">添加订阅</button>
+                    <button type="submit" id="submitBtn" class="btn btn-primary">添加订阅</button>
                 </form>
             </div>
         </div>
@@ -215,6 +215,15 @@
                 }
             });
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.querySelector('form');
+            const submitBtn = document.getElementById('submitBtn');
+            form.addEventListener('submit', function() {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '正在添加...'; // 改变按钮文本
+            });
+        });
     </script>
 </body>
 </html>
