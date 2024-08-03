@@ -39,7 +39,6 @@ app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///subscriptions.sqlite'
 app.secret_key = 'bingcheng_secret_key'
 db = SQLAlchemy(app)
-request_blocked = b'\xe5\xbe\x88\xe6\x8a\xb1\xe6\xad\x89\xef\xbc\x8c'
 
 class Subscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -54,7 +53,7 @@ class Subscription(db.Model):
     price_range = db.Column(db.String(100))
     date_range = db.Column(db.String(100))
     status = db.Column(db.String(20), default='active')
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
 
 @app.route('/')
 def index():
@@ -68,6 +67,12 @@ def add_subscription():
     alert_config = request.form.getlist('alert_config')
     email = request.form['email']
     callback = request.form.get('callback', '')
+    
+    # 检查是否已经存在相同的 URL
+    existing_subscription = Subscription.query.filter_by(url=url).first()
+    if existing_subscription:
+        flash('该 URL 已经存在，请先删除。', 'error')
+        return redirect(url_for('index'))
 
     try:
         # 初始化 WebDriver

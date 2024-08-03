@@ -25,13 +25,24 @@
     </style>
 </head>
 <body>
-    {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-            {% for category, message in messages %}
-            <div class="alert alert-{{ category }}">{{ message }}</div>
-            {% endfor %}
-        {% endif %}
-    {% endwith %}
+    <div class="container mt-4">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        {% for category, message in messages %}
+                        Swal.fire({
+                            icon: '{{ 'success' if category == 'success' else 'error' if category == 'error' else 'info' }}',
+                            title: '{{ message }}',
+                            showConfirmButton: false,
+                            timer: 3000
+                        });
+                        {% endfor %}
+                    });
+                </script>
+            {% endif %}
+        {% endwith %}
+    </div>
     <div class="container mt-5">
         <h1 class="text-center mb-5">国家大剧院开票提醒</h1>
         
