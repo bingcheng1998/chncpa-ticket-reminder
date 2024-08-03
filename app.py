@@ -188,7 +188,7 @@ def send_notification(subscription, test=False):
         server.login(smtp_username, smtp_password)
         server.send_message(msg)
 
-    if subscription.callback and not test:
+    if subscription.callback and len(subscription.callback) > 0:
         callback_code = subscription.callback \
             .replace('{{title}}', subscription.title) \
             .replace('{{venue}}', subscription.venue) \
