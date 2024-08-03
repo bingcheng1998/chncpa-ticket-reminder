@@ -264,5 +264,5 @@ if __name__ == '__main__':
     schedule.every(1).hours.do(check_subscriptions)
     threading.Thread(target=run_schedule, daemon=True).start()
     
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=18882, debug=True)
 
