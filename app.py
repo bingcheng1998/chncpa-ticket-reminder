@@ -119,6 +119,16 @@ def add_subscription():
 
     return redirect(url_for('index'))
 
+@app.route('/trigger_check', methods=['POST'])
+def trigger_check():
+    def delayed_check():
+        with app.app_context():
+            check_subscriptions()
+
+    threading.Timer(0, delayed_check).start()
+    
+    return jsonify({'message': 'Check triggered successfully'}), 200
+
 @app.route('/delete_subscription/<int:id>', methods=['POST'])
 def delete_subscription(id):
     subscription = Subscription.query.get_or_404(id)
