@@ -34,7 +34,18 @@ elif browser == 'firefox':
 else:
     raise ValueError("Unsupported platform", browser)
 
-browdriver_binary_path = WebDriverManager().install()
+def get_browser_driver_path(max_retries=10, delay=10):
+    for attempt in range(max_retries):
+        try:
+            driver_path = WebDriverManager().install()
+            return driver_path
+        except Exception as e:
+            print(f"尝试 {attempt + 1}/{max_retries} 失败: {e}")
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+    raise RuntimeError("无法获取浏览器驱动程序路径")
+
+browser_driver_path = get_browser_driver_path()
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
