@@ -132,7 +132,7 @@ def add_subscription():
                 logger.error(f"Failed to fetch page after {max_retries} attempts: {subscription.url}")
                 return redirect(url_for('index'))
             attempt += 1
-            time.sleep(2)  # 等待一段时间再重试
+            time.sleep(SINGLE_PAGR_WAIT_SECONDS)  # 等待一段时间再重试
         finally:
             if driver:
                 driver.quit()
@@ -271,7 +271,7 @@ def check_subscriptions():
                     logger.error(f"Failed to fetch page after {max_retries} attempts: {subscription.url}")
                     continue
                 attempt += 1
-                time.sleep(10)
+                time.sleep(SINGLE_PAGR_WAIT_SECONDS)
             finally:
                 if driver:
                     driver.quit()
