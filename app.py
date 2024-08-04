@@ -59,6 +59,10 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///subscriptions.sqlite'
 app.secret_key = 'bingcheng_secret_key'
 db = SQLAlchemy(app)
 
+def delayed_check():
+        with app.app_context():
+            check_subscriptions()
+
 def get_browser_driver_path(max_retries=10, delay=10):
     for attempt in range(max_retries):
         try:
@@ -166,10 +170,6 @@ def add_subscription():
     db.session.commit()
     
     flash('订阅已添加。', 'success')
-    
-    def delayed_check():
-        with app.app_context():
-            check_subscriptions()
 
     threading.Timer(2, lambda: delayed_check()).start()
 
@@ -177,12 +177,7 @@ def add_subscription():
 
 @app.route('/trigger_check', methods=['POST'])
 def trigger_check():
-    def delayed_check():
-        with app.app_context():
-            check_subscriptions()
-
     threading.Timer(0, delayed_check).start()
-    
     return jsonify({'message': 'Check triggered successfully'}), 200
 
 @app.route('/delete_subscription/<int:id>', methods=['POST'])
@@ -255,6 +250,7 @@ def send_notification(subscription, test=False):
 
 def check_subscriptions():
     subscriptions = Subscription.query.filter_by(status='active').all()
+    random.shuffle(subscriptions)
     for i, subscription in enumerate(subscriptions):
         logger.info(f"============== check_subscriptions ({i + 1}/{len(subscriptions)}) ==============")
         max_retries = 3
@@ -338,7 +334,7 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
     
-    schedule.every(1).hours.do(check_subscriptions)
+    schedule.every(1).hours.do(delayed_check)
     threading.Thread(target=run_schedule, daemon=True).start()
     
     app.run(host='0.0.0.0', port=18882, debug=True)
