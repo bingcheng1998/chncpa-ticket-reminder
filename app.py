@@ -20,17 +20,18 @@ from selenium.webdriver.common.by import By
 # 从配置文件读取检查配置
 config = configparser.ConfigParser()
 config.read('config.ini')
+browser = config['web']['platform'].lower()
 
-if config['web']['platform'].lower() == 'chrome':
+if browser == 'chrome':
     from selenium.webdriver.chrome.service import Service
     from selenium.webdriver.chrome.options import Options
     from webdriver_manager.chrome import ChromeDriverManager as WebDriverManager
-elif config['web']['platform'].lower() == 'firefox':
+elif browser == 'firefox':
     from selenium.webdriver.firefox.service import Service
     from selenium.webdriver.firefox.options import Options
     from webdriver_manager.firefox import GeckoDriverManager as WebDriverManager
 else:
-    raise ValueError("Unsupported platform")
+    raise ValueError("Unsupported platform", browser)
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -46,11 +47,11 @@ def get_random_user_agent():
     return random.choice(user_agents)
 
 # 设置 Chrome 选项
-chrome_options = Options()
-chrome_options.add_argument("--headless")  # 无头模式，不打开浏览器界面
-chrome_options.add_argument("--disable-gpu")
-chrome_options.add_argument("--no-sandbox")
-chrome_options.add_argument(f"user-agent={get_random_user_agent()}")
+browser_options = Options()
+browser_options.add_argument("--headless")  # 无头模式，不打开浏览器界面
+browser_options.add_argument("--disable-gpu")
+browser_options.add_argument("--no-sandbox")
+browser_options.add_argument(f"user-agent={get_random_user_agent()}")
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///subscriptions.sqlite'
@@ -97,7 +98,12 @@ def add_subscription():
     try:
         # 初始化 WebDriver
         service = Service(WebDriverManager().install())
-        driver = webdriver.Chrome(service=service, options=chrome_options)
+        if browser == 'chrome':
+            driver = webdriver.Chrome(service=service, options=browser_options)
+        elif browser == 'firefox':
+            driver = webdriver.Firefox(service=service, options=browser_options)
+        else:
+            raise ValueError("Unsupported platform", browser)
 
         driver.get(url)
         driver.implicitly_wait(10)
@@ -214,7 +220,12 @@ def check_subscriptions():
         logger.info(f"============== check_subscriptions ({i + 1}/{len(subscriptions)}) ==============")
         try:
             service = Service(WebDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
+            if browser == 'chrome':
+                driver = webdriver.Chrome(service=service, options=browser_options)
+            elif browser == 'firefox':
+                driver = webdriver.Firefox(service=service, options=browser_options)
+            else:
+                raise ValueError("Unsupported platform", browser)
             driver.get(subscription.url)
             driver.implicitly_wait(10)
             page_source = driver.page_source
