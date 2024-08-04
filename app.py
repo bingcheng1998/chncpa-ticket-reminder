@@ -34,6 +34,8 @@ elif browser == 'firefox':
 else:
     raise ValueError("Unsupported platform", browser)
 
+browdriver_binary_path = WebDriverManager().install()
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -98,7 +100,7 @@ def add_subscription():
 
     try:
         # 初始化 WebDriver
-        service = Service(WebDriverManager().install())
+        service = Service(browdriver_binary_path)
         if browser == 'chrome':
             driver = webdriver.Chrome(service=service, options=browser_options)
         elif browser == 'firefox':
@@ -224,7 +226,7 @@ def check_subscriptions():
         time.sleep(SINGLE_PAGR_WAIT_SECONDS * 1.5)
         logger.info(f"============== check_subscriptions ({i + 1}/{len(subscriptions)}) ==============")
         try:
-            service = Service(WebDriverManager().install())
+            service = Service(browdriver_binary_path)
             if browser == 'chrome':
                 driver = webdriver.Chrome(service=service, options=browser_options)
             elif browser == 'firefox':
