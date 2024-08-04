@@ -141,7 +141,7 @@ def add_subscription():
         except Exception as e:
             logger.error(f"Attempt {attempt + 1} - Error fetching page: {e}")
             if attempt == max_retries - 1:
-                logger.error(f"Failed to fetch page after {max_retries} attempts: {subscription.url}")
+                logger.error(f"Failed to fetch page after {max_retries} attempts: {url}")
                 return redirect(url_for('index'))
             attempt += 1
             time.sleep(SINGLE_PAGR_WAIT_SECONDS)  # 等待一段时间再重试
