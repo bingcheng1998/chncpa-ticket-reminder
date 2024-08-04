@@ -70,7 +70,7 @@ def get_browser_driver_path(max_retries=10, delay=10):
                 time.sleep(delay)
     raise RuntimeError("无法获取浏览器驱动程序路径")
 
-browser_driver_path = get_browser_driver_path()
+browdriver_binary_path = get_browser_driver_path()
 
 class Subscription(db.Model):
     id = db.Column(db.Integer, primary_key=True)
