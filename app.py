@@ -16,9 +16,21 @@ import random
 import configparser
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from webdriver_manager.chrome import ChromeDriverManager
+
+# 从配置文件读取检查配置
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+if config['web']['platform'].lower() == 'chrome':
+    from selenium.webdriver.chrome.service import Service
+    from selenium.webdriver.chrome.options import Options
+    from webdriver_manager.chrome import ChromeDriverManager as WebDriverManager
+elif config['web']['platform'].lower() == 'firefox':
+    from selenium.webdriver.firefox.service import Service
+    from selenium.webdriver.firefox.options import Options
+    from webdriver_manager.firefox import GeckoDriverManager as WebDriverManager
+else:
+    raise ValueError("Unsupported platform")
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -64,8 +76,6 @@ class Subscription(db.Model):
 @app.route('/')
 def index():
     subscriptions = Subscription.query.all()
-    config = configparser.ConfigParser()
-    config.read('config.ini')
     check_configs = {section: config[section] for section in config.sections() if section.startswith('check-')}
     callback_code = config['callback']['code']
     return render_template('index.html', subscriptions=subscriptions, check_configs=check_configs, callback_code=callback_code)
@@ -86,7 +96,7 @@ def add_subscription():
 
     try:
         # 初始化 WebDriver
-        service = Service(ChromeDriverManager().install())
+        service = Service(WebDriverManager().install())
         driver = webdriver.Chrome(service=service, options=chrome_options)
 
         driver.get(url)
@@ -164,10 +174,6 @@ def send_notification(subscription, test=False):
     </html>
     """
 
-    # 读取配置文件
-    config = configparser.ConfigParser()
-    config.read('config.ini')
-
     # 获取SMTP配置
     smtp_server = config['SMTP']['server']
     smtp_port = config['SMTP'].getint('port')
@@ -207,7 +213,7 @@ def check_subscriptions():
         time.sleep(5)
         logger.info(f"============== check_subscriptions ({i + 1}/{len(subscriptions)}) ==============")
         try:
-            service = Service(ChromeDriverManager().install())
+            service = Service(WebDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.get(subscription.url)
             driver.implicitly_wait(10)
@@ -218,10 +224,6 @@ def check_subscriptions():
             continue
 
         tree = html.fromstring(page_source)
-        
-        # 从配置文件读取检查配置
-        config = configparser.ConfigParser()
-        config.read('config.ini')
         
         # 记录日志
         logger.info(f"Checked subscription: {subscription.title}")
