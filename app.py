@@ -98,31 +98,45 @@ def add_subscription():
         flash('该 URL 已经存在，请先删除。', 'error')
         return redirect(url_for('index'))
 
-    try:
-        # 初始化 WebDriver
-        service = Service(browdriver_binary_path)
-        if browser == 'chrome':
-            driver = webdriver.Chrome(service=service, options=browser_options)
-        elif browser == 'firefox':
-            driver = webdriver.Firefox(service=service, options=browser_options)
-        else:
-            raise ValueError("Unsupported platform", browser)
-
-        driver.get(url)
-        driver.implicitly_wait(SINGLE_PAGR_WAIT_SECONDS)
+    max_retries = 3
+    attempt = 0
+    driver = None
+    image = title = venue = price_range = date_range = None
     
-        image_element = driver.find_element(By.XPATH, '//*[@id="productImg"]/img')
-        image = image_element.get_attribute('src')
-        title = driver.find_element(By.XPATH, '//*[@id="productName"]').text
-        venue = driver.find_element(By.XPATH, '//*[@id="venueName"]').text
-        price_range = driver.find_element(By.XPATH, '//*[@id="productPrices"]').text
-        date_range = driver.find_element(By.XPATH, '//*[@id="productTime"]').text
-        if not image or not title:
-            raise requests.RequestException("没有获取到演出信息")
-    except requests.RequestException as e:
-        flash(f'获取页面信息失败，请稍后重试。错误: {str(e)}', 'error')
-        return redirect(url_for('index'))
+    while attempt < max_retries:
+        try:
+            # 初始化 WebDriver
+            service = Service(browdriver_binary_path)
+            if browser == 'chrome':
+                driver = webdriver.Chrome(service=service, options=browser_options)
+            elif browser == 'firefox':
+                driver = webdriver.Firefox(service=service, options=browser_options)
+            else:
+                raise ValueError("Unsupported platform", browser)
 
+            driver.get(url)
+            driver.implicitly_wait(SINGLE_PAGR_WAIT_SECONDS)
+        
+            image_element = driver.find_element(By.XPATH, '//*[@id="productImg"]/img')
+            image = image_element.get_attribute('src')
+            title = driver.find_element(By.XPATH, '//*[@id="productName"]').text
+            venue = driver.find_element(By.XPATH, '//*[@id="venueName"]').text
+            price_range = driver.find_element(By.XPATH, '//*[@id="productPrices"]').text
+            date_range = driver.find_element(By.XPATH, '//*[@id="productTime"]').text
+            
+            if image and title:
+                break
+        except Exception as e:
+            logger.error(f"Attempt {attempt + 1} - Error fetching page: {e}")
+            if attempt == max_retries - 1:
+                logger.error(f"Failed to fetch page after {max_retries} attempts: {subscription.url}")
+                return redirect(url_for('index'))
+            attempt += 1
+            time.sleep(2)  # 等待一段时间再重试
+        finally:
+            if driver:
+                driver.quit()
+    
     subscription = Subscription(
         url=url, interval=interval, alert_config=','.join(alert_config),
         email=email, callback=callback, image=image, title=title,
@@ -137,8 +151,7 @@ def add_subscription():
         with app.app_context():
             check_subscriptions()
 
-    # 等待 5 秒后触发一次查询
-    threading.Timer(SINGLE_PAGR_WAIT_SECONDS, lambda: delayed_check()).start()
+    threading.Timer(2, lambda: delayed_check()).start()
 
     return redirect(url_for('index'))
 
@@ -223,24 +236,46 @@ def send_notification(subscription, test=False):
 def check_subscriptions():
     subscriptions = Subscription.query.filter_by(status='active').all()
     for i, subscription in enumerate(subscriptions):
-        time.sleep(SINGLE_PAGR_WAIT_SECONDS * 1.5)
         logger.info(f"============== check_subscriptions ({i + 1}/{len(subscriptions)}) ==============")
-        try:
-            service = Service(browdriver_binary_path)
-            if browser == 'chrome':
-                driver = webdriver.Chrome(service=service, options=browser_options)
-            elif browser == 'firefox':
-                driver = webdriver.Firefox(service=service, options=browser_options)
-            else:
-                raise ValueError("Unsupported platform", browser)
-            driver.get(subscription.url)
-            driver.implicitly_wait(SINGLE_PAGR_WAIT_SECONDS)
-            page_source = driver.page_source
-            driver.quit()
-        except Exception as e:
-            print(f"Error fetching page: {e}")
-            continue
+        max_retries = 3
+        attempt = 0
+        page_source = None
+        image = title = None
+        
+        while attempt < max_retries:
+            try:
+                service = Service(browdriver_binary_path)
+                if browser == 'chrome':
+                    driver = webdriver.Chrome(service=service, options=browser_options)
+                elif browser == 'firefox':
+                    driver = webdriver.Firefox(service=service, options=browser_options)
+                else:
+                    raise ValueError("Unsupported platform", browser)
 
+                driver.get(subscription.url)
+                driver.implicitly_wait(SINGLE_PAGR_WAIT_SECONDS)
+                
+                image_element = driver.find_element(By.XPATH, '//*[@id="productImg"]/img')
+                image = image_element.get_attribute('src')
+                title = driver.find_element(By.XPATH, '//*[@id="productName"]').text
+                page_source = driver.page_source
+                
+                driver.quit()
+                
+                if image and title and page_source:
+                    break
+                
+            except Exception as e:
+                logger.error(f"Attempt {attempt + 1} - Error fetching page: {e}")
+                if attempt == max_retries - 1:
+                    logger.error(f"Failed to fetch page after {max_retries} attempts: {subscription.url}")
+                    continue
+                attempt += 1
+                time.sleep(10)
+            finally:
+                if driver:
+                    driver.quit()
+                    
         tree = html.fromstring(page_source)
         
         # 记录日志
@@ -271,6 +306,8 @@ def check_subscriptions():
         
         subscription.last_checked = datetime.now()
         db.session.commit()
+        
+        time.sleep(SINGLE_PAGR_WAIT_SECONDS * 1.5)
 
 def run_schedule():
     while True:
