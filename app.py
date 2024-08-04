@@ -158,6 +158,7 @@ def delete_subscription(id):
 
 @app.route('/test_notification/<int:id>', methods=['POST'])
 def test_notification(id):
+    logger.info(f"============== test_notification ({id}) ==============")
     subscription = Subscription.query.get_or_404(id)
     send_notification(subscription, test=True)
     return jsonify(success=True)
@@ -212,6 +213,7 @@ def send_notification(subscription, test=False):
             .replace('{{url}}', subscription.url)
         try:
             subprocess.run(callback_code, shell=True)
+            logger.info(f"运行自定义脚本成功：{callback_code}")
         except:
             logger.error(f"运行自定义脚本失败：{callback_code}")
 
