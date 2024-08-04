@@ -133,8 +133,16 @@ def add_subscription():
             image = image_element.get_attribute('src')
             title = driver.find_element(By.XPATH, '//*[@id="productName"]').text
             venue = driver.find_element(By.XPATH, '//*[@id="venueName"]').text
-            price_range = driver.find_element(By.XPATH, '//*[@id="productPrices"]').text
-            date_range = driver.find_element(By.XPATH, '//*[@id="productTime"]').text
+            price_range = '待定'
+            try:
+                price_range = driver.find_element(By.XPATH, '//*[@id="productPrices"]').text
+            except:
+                pass
+            date_range = '待定'
+            try:
+                date_range = driver.find_element(By.XPATH, '//*[@id="productTime"]').text
+            except:
+                pass
             
             if image and title:
                 break
