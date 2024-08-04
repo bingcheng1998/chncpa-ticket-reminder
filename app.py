@@ -21,6 +21,7 @@ from selenium.webdriver.common.by import By
 config = configparser.ConfigParser()
 config.read('config.ini')
 browser = config['web']['platform'].lower()
+SINGLE_PAGR_WAIT_SECONDS = 30
 
 if browser == 'chrome':
     from selenium.webdriver.chrome.service import Service
@@ -106,7 +107,7 @@ def add_subscription():
             raise ValueError("Unsupported platform", browser)
 
         driver.get(url)
-        driver.implicitly_wait(10)
+        driver.implicitly_wait(SINGLE_PAGR_WAIT_SECONDS)
     
         image_element = driver.find_element(By.XPATH, '//*[@id="productImg"]/img')
         image = image_element.get_attribute('src')
@@ -135,7 +136,7 @@ def add_subscription():
             check_subscriptions()
 
     # 等待 5 秒后触发一次查询
-    threading.Timer(5, lambda: delayed_check()).start()
+    threading.Timer(SINGLE_PAGR_WAIT_SECONDS, lambda: delayed_check()).start()
 
     return redirect(url_for('index'))
 
@@ -213,14 +214,14 @@ def send_notification(subscription, test=False):
             .replace('{{url}}', subscription.url)
         try:
             subprocess.run(callback_code, shell=True)
-            logger.info(f"运行自定义脚本成功：{callback_code}")
+            logger.info(f"运行自定义脚本已经触发：{callback_code}")
         except:
             logger.error(f"运行自定义脚本失败：{callback_code}")
 
 def check_subscriptions():
     subscriptions = Subscription.query.filter_by(status='active').all()
     for i, subscription in enumerate(subscriptions):
-        time.sleep(5)
+        time.sleep(SINGLE_PAGR_WAIT_SECONDS * 1.5)
         logger.info(f"============== check_subscriptions ({i + 1}/{len(subscriptions)}) ==============")
         try:
             service = Service(WebDriverManager().install())
@@ -231,7 +232,7 @@ def check_subscriptions():
             else:
                 raise ValueError("Unsupported platform", browser)
             driver.get(subscription.url)
-            driver.implicitly_wait(10)
+            driver.implicitly_wait(SINGLE_PAGR_WAIT_SECONDS)
             page_source = driver.page_source
             driver.quit()
         except Exception as e:
