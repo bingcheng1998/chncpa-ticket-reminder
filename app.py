@@ -114,6 +114,8 @@ def add_subscription():
         venue = driver.find_element(By.XPATH, '//*[@id="venueName"]').text
         price_range = driver.find_element(By.XPATH, '//*[@id="productPrices"]').text
         date_range = driver.find_element(By.XPATH, '//*[@id="productTime"]').text
+        if not image or not title:
+            raise requests.RequestException("没有获取到演出信息")
     except requests.RequestException as e:
         flash(f'获取页面信息失败，请稍后重试。错误: {str(e)}', 'error')
         return redirect(url_for('index'))
