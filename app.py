@@ -82,7 +82,8 @@ def index():
     subscriptions = Subscription.query.all()
     check_configs = {section: config[section] for section in config.sections() if section.startswith('check-')}
     callback_code = config['callback']['code']
-    return render_template('index.html', subscriptions=subscriptions, check_configs=check_configs, callback_code=callback_code)
+    default_email_receiver = config['SMTP']['default']
+    return render_template('index.html', subscriptions=subscriptions, check_configs=check_configs, callback_code=callback_code, default_email_receiver=default_email_receiver)
 
 @app.route('/add_subscription', methods=['POST'])
 def add_subscription():
