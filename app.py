@@ -164,7 +164,7 @@ def test_notification(id):
     return jsonify(success=True)
 
 def send_notification(subscription, test=False):
-    subject = f"{'[测试] ' if test else ''}开票提醒：{subscription.title}"
+    subject = f"{'[测试] ' if test else '⭐️ '}开票提醒：{subscription.title}"
     body = f"""
     <html>
         <body>
