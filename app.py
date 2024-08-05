@@ -51,7 +51,6 @@ def get_random_user_agent():
 browser_options = Options()
 browser_options.add_argument("--headless")  # 无头模式，不打开浏览器界面
 browser_options.add_argument("--disable-gpu")
-browser_options.add_argument("--no-sandbox")
 browser_options.add_argument(f"user-agent={get_random_user_agent()}")
 
 app = Flask(__name__)
