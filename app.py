@@ -337,5 +337,9 @@ if __name__ == '__main__':
     schedule.every(1).hours.do(delayed_check)
     threading.Thread(target=run_schedule, daemon=True).start()
     
-    app.run(host='0.0.0.0', port=18882, debug=True)
+    host = config['server']['host']
+    port = config['server']['port']
+    debug = config['server'].getboolean('debug')
+    
+    app.run(host=host, port=port, debug=debug)
 
